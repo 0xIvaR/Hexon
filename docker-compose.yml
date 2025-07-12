@@ -1,0 +1,58 @@
+version: '3.8'
+
+services:
+  # MongoDB Database
+  mongodb:
+    image: mongo:6.0
+    container_name: hexon-mongodb
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_DATABASE: pdftools
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+      - ./mongo-init:/docker-entrypoint-initdb.d
+    networks:
+      - hexon-network
+
+  # HEXON Application
+  hexon-app:
+    build: .
+    container_name: hexon-app
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    environment:
+      - NODE_ENV=production
+      - MONGODB_URI=mongodb://mongodb:27017/pdftools
+    volumes:
+      - ./uploads:/app/uploads
+    depends_on:
+      - mongodb
+    networks:
+      - hexon-network
+
+  # Nginx Reverse Proxy (Optional)
+  nginx:
+    image: nginx:alpine
+    container_name: hexon-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf
+      - ./ssl:/etc/nginx/ssl
+    depends_on:
+      - hexon-app
+    networks:
+      - hexon-network
+
+volumes:
+  mongodb_data:
+    driver: local
+
+networks:
+  hexon-network:
+    driver: bridge 
